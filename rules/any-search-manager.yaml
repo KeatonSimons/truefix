@@ -1,0 +1,189 @@
+# Any Search Manager — TrueFix detection rule pack
+# ---------------------------------------------------
+# Rule pack for the "Any Search Manager" / "Search Marquis" hijacker family.
+# This is the seed rule pack — built from a real-world cleanup performed on
+# 2026-05-23 of a Mac that had been infected for ~2.5 years.
+#
+# Schema version: 1
+# See rules/README.md for the full schema documentation.
+
+schema_version: 1
+
+family:
+  id: any-search-manager
+  display_name: "Any Search Manager"
+  also_known_as:
+    - "Search Marquis"
+    - "AnySearch"
+  category: browser-hijacker
+  severity: high
+  description: >
+    Chrome hijacker that forces Chrome's default search engine to route through
+    anysearchmanager.com and inserts sponsored results / redirects. Typically
+    installed via a fake media player, Flash update, codec installer, or PDF
+    tool that asked the user for their Mac admin password during install.
+  user_facing_symptoms:
+    - "Chrome's default search engine is forced to search.anysearchmanager.com or searchmarquis.com"
+    - "Chrome settings show the banner 'Your browser is managed by your organization'"
+    - "The hijacker extension cannot be removed from chrome://extensions (no Remove button)"
+    - "Resetting Chrome settings does not stick — the hijacker returns after restart"
+  references:
+    - title: "Malwarebytes Labs: Any Search Manager"
+      url: "https://www.malwarebytes.com/blog/detections/pup-optional-anysearchmanager"
+      note: "Vendor write-up. Confirms family classification."
+      # TODO: verify this URL is still live; replace with archive.org snapshot if rotted
+    - title: "TrueFix cleanup transcript — 2026-05-23"
+      url: "internal://cleanup-2026-05-23"
+      note: >
+        Primary source for this rule pack. Manual cleanup of a Mac infected
+        since late 2023. Captured exact persistence paths, extension IDs, and
+        the commands required for full removal.
+
+# ---------------------------------------------------------------------------
+# Detection signals
+# ---------------------------------------------------------------------------
+# Each signal is independent. A finding is reported if ANY signal matches.
+# The cleanup engine consumes the matched signals' `remove` blocks (see below).
+
+signals:
+
+  # --- Signal 1: Chrome ExtensionInstallForcelist policy ------------------
+  - id: chrome-forced-extension
+    kind: chrome-policy
+    description: >
+      Chrome's ExtensionInstallForcelist policy contains the Any Search
+      Manager extension ID. This is what makes the extension un-removable
+      from chrome://extensions and shows the "managed by your organization"
+      banner.
+    match:
+      policy_key: ExtensionInstallForcelist
+      extension_ids:
+        - gbinpomjmgglfdeadepbdmpcbjibgjea
+    scopes_to_check:
+      # System-wide policy plist. This is where the 2026-05-23 cleanup found it.
+      # Highest-priority check — many other tools miss this scope.
+      - /Library/Preferences/com.google.Chrome.plist
+      # Managed-preferences path (MDM-style). Less common but checked for completeness.
+      - /Library/Managed Preferences/com.google.Chrome.plist
+      # User-scope plist. Standard cleanup advice targets only this scope.
+      - ~/Library/Preferences/com.google.Chrome.plist
+    remove:
+      action: defaults-delete-key
+      # The cleanup engine should remove only the matching extension ID from the
+      # ExtensionInstallForcelist array, not the whole key — unless the array
+      # becomes empty afterward, in which case remove the key entirely.
+      surgical: true
+      requires_root: true   # true for /Library scopes; false for user scope
+
+  # --- Signal 2: Root-owned extension folder ------------------------------
+  - id: chrome-extension-folder
+    kind: filesystem
+    description: >
+      Hijacker extension folder dropped at install time and owned by root:wheel,
+      which is why normal `rm` fails. Contains the extension's actual code
+      (manifest.json, scripts, icons).
+    match:
+      paths:
+        - "~/Library/Application Support/Google/Chrome/Profile */Extensions/gbinpomjmgglfdeadepbdmpcbjibgjea"
+        # Match all Chrome profiles, not just "Profile 1".
+    remove:
+      action: remove-directory
+      requires_root: true
+
+  # --- Signal 3: Configuration Profile ------------------------------------
+  - id: configuration-profile
+    kind: configuration-profile
+    description: >
+      Some variants of this hijacker install via a macOS Configuration Profile
+      instead of (or in addition to) the system-wide plist. Profile typically
+      targets the com.google.Chrome PayloadType and injects the same
+      ExtensionInstallForcelist key with the hijacker extension ID.
+    match:
+      payload_type: com.google.Chrome
+      payload_content_contains: gbinpomjmgglfdeadepbdmpcbjibgjea
+    remove:
+      action: remove-profile
+      requires_root: true
+      # Note: the 2026-05-23 cleanup case did NOT have a Configuration Profile.
+      # Persistence was entirely in the system-wide plist + root-owned folder.
+      # This signal is here because other public reports describe profile-based
+      # variants.
+
+  # --- Signal 4: LaunchAgents / LaunchDaemons -----------------------------
+  - id: launch-agent-or-daemon
+    kind: filesystem
+    description: >
+      Some variants of this family include a LaunchAgent or LaunchDaemon that
+      re-installs the policy or extension folder after they're removed. If this
+      signal matches, the hijacker can come back even after the policy + folder
+      are cleaned, so it must be removed BEFORE the other signals.
+    match:
+      paths:
+        - "~/Library/LaunchAgents/*"
+        - "/Library/LaunchAgents/*"
+        - "/Library/LaunchDaemons/*"
+      plist_contents_contains:
+        - gbinpomjmgglfdeadepbdmpcbjibgjea
+        - anysearchmanager.com
+        - searchmarquis.com
+    remove:
+      action: unload-and-remove-plist
+      requires_root: true   # true for /Library; false for ~/Library
+      precedence: first   # remove these before other signals to prevent re-infection
+
+# ---------------------------------------------------------------------------
+# Verification (run after cleanup, automatically)
+# ---------------------------------------------------------------------------
+verification:
+  - description: "chrome://policy should show 'No policies set'"
+    check: chrome-policy-empty
+  - description: "System-wide Chrome plist should be absent or contain no ExtensionInstallForcelist key"
+    check: file-absent-or-key-absent
+    path: /Library/Preferences/com.google.Chrome.plist
+    key: ExtensionInstallForcelist
+  - description: "Hijacker extension folders should be gone"
+    check: paths-absent
+    paths:
+      - "~/Library/Application Support/Google/Chrome/Profile */Extensions/gbinpomjmgglfdeadepbdmpcbjibgjea"
+  - description: "Chrome must be fully quit (⌘Q) and relaunched before re-scan"
+    check: user-acknowledge
+
+# ---------------------------------------------------------------------------
+# Known IDs in this family
+# ---------------------------------------------------------------------------
+# The primary extension ID confirmed by real-world cleanup is at the top.
+# Additional IDs should be added here as new variants are observed; each new
+# ID needs at least one independent reference per the rules/README.md standards.
+extension_ids:
+  - id: gbinpomjmgglfdeadepbdmpcbjibgjea
+    confirmed: 2026-05-23
+    source: "TrueFix cleanup transcript 2026-05-23 (primary)"
+  # TODO: research and add the full known-variant list.
+  # Sources to mine:
+  #   - Malwarebytes threat database
+  #   - Bleeping Computer hijacker write-ups
+  #   - Reddit r/macsysadmin and r/applehelp threads
+  #   - VirusTotal community comments
+
+# ---------------------------------------------------------------------------
+# URL patterns associated with the family (informational, not directly used
+# for cleanup — but useful for educating the user and for future Safari support)
+# ---------------------------------------------------------------------------
+url_patterns:
+  - search.anysearchmanager.com
+  - anysearchmanager.com
+  - searchmarquis.com
+  - search.searchmarquis.com
+
+# ---------------------------------------------------------------------------
+# Curation metadata
+# ---------------------------------------------------------------------------
+maintenance:
+  curated_by:
+    - "TrueFix project lead (Keaton)"   # TODO: add GitHub handle
+  last_reviewed: 2026-05-23
+  notes: >
+    First rule pack in the project. Based on a single real-world cleanup, so
+    coverage of the wider family is incomplete — only the gbinpomjmgglfdeadepbdmpcbjibgjea
+    variant is confirmed. Treat additional extension IDs and persistence
+    mechanisms as TODO until corroborated by a second independent source.
