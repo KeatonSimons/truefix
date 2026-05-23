@@ -1,0 +1,62 @@
+# Search Marquis — TrueFix detection rule pack
+# ----------------------------------------------
+# STUB. This file is intentionally minimal — it's a placeholder that documents
+# the family and lists what needs to be researched before the rule pack ships.
+#
+# Note: Search Marquis is closely related to Any Search Manager and may share
+# extension IDs and persistence mechanisms. The two families are kept as
+# separate rule packs because their cleanup advice in the wild differs and
+# some variants are observed under only one name.
+
+schema_version: 1
+
+family:
+  id: search-marquis
+  display_name: "Search Marquis"
+  also_known_as:
+    - "SearchMarquis"
+  category: browser-hijacker
+  severity: high
+  description: >
+    Chrome hijacker that forces searches to route through searchmarquis.com.
+    Often co-occurs with Any Search Manager. Frequently affects Safari as well
+    as Chrome — Safari coverage is V2 scope, not V1.
+  user_facing_symptoms:
+    - "Default search engine forced to searchmarquis.com or bing.com via a marquis redirect"
+    - "Chrome 'managed by your organization' banner"
+  references:
+    # TODO: add references before this stub becomes a shipping rule pack.
+    - title: "Malwarebytes Labs: Search Marquis"
+      url: ""   # TODO: find URL, add archive.org snapshot
+      note: "Vendor write-up. To be verified."
+
+# STUB: signals to research and document
+signals:
+  - id: chrome-forced-extension
+    kind: chrome-policy
+    description: "TODO: confirm extension IDs and policy scope"
+    match:
+      policy_key: ExtensionInstallForcelist
+      extension_ids: []   # TODO: research
+    scopes_to_check:
+      - /Library/Preferences/com.google.Chrome.plist
+      - /Library/Managed Preferences/com.google.Chrome.plist
+      - ~/Library/Preferences/com.google.Chrome.plist
+    remove:
+      action: defaults-delete-key
+      surgical: true
+      requires_root: true
+
+# TODO: full schema fields below — fill in during research phase
+extension_ids: []
+url_patterns:
+  - searchmarquis.com
+  - search.searchmarquis.com
+
+maintenance:
+  curated_by: []   # TODO
+  last_reviewed: null   # this stub has not been reviewed; do not ship as-is
+  notes: >
+    STUB. Do not enable this rule pack in production until the TODOs above are
+    filled in and the rule pack passes the two-maintainer review described in
+    rules/README.md.
