@@ -1,0 +1,43 @@
+# macOS
+.DS_Store
+*.swp
+
+# Xcode
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.pins
+Package.resolved
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Notarization / signing artifacts
+*.p12
+*.cer
+*.provisionprofile
+notarization-*.json
+*.dmg
+*.app.zip
+
+# Editor / OS junk
+.idea/
+.vscode/
+*.swo
+*~
+
+# Local dev
+.env
+.env.local
+local/
+tmp/
