@@ -180,7 +180,7 @@ url_patterns:
 # ---------------------------------------------------------------------------
 maintenance:
   curated_by:
-    - "TrueFix project lead (Keaton)"   # TODO: add GitHub handle
+    - "TrueFix project lead (Keaton) — @keatonsimons"
   last_reviewed: 2026-05-23
   notes: >
     First rule pack in the project. Based on a single real-world cleanup, so
