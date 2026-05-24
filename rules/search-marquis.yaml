@@ -9,6 +9,7 @@
 # some variants are observed under only one name.
 
 schema_version: 1
+status: stub   # placeholder; must not ship. See tools/lint_rules.py.
 
 family:
   id: search-marquis

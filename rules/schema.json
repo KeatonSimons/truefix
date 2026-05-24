@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truefix.app/schemas/rule-pack/v1.json",
+  "title": "TrueFix Rule Pack (v1)",
+  "description": "Machine-readable contract for files under rules/. See rules/README.md for the prose version. A rule pack with `status: stub` is validated against a relaxed variant — see tools/lint_rules.py.",
+  "type": "object",
+  "required": ["schema_version", "family", "signals", "verification", "extension_ids", "maintenance"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["active", "stub"],
+      "description": "Omit or set to 'active' for a shippable pack. 'stub' relaxes validation for in-progress placeholders that must not ship."
+    },
+    "family": { "$ref": "#/$defs/family" },
+    "signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/signal" }
+    },
+    "verification": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/verification_check" }
+    },
+    "extension_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/extension_id_entry" }
+    },
+    "url_patterns": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "maintenance": { "$ref": "#/$defs/maintenance" }
+  },
+  "$defs": {
+    "kebab_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "extension_id": {
+      "type": "string",
+      "pattern": "^[a-p]{32}$",
+      "description": "Chrome extension ID: 32 chars, lowercase a-p only."
+    },
+    "iso_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "family": {
+      "type": "object",
+      "required": ["id", "display_name", "category", "severity", "description", "references"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/kebab_id" },
+        "display_name": { "type": "string", "minLength": 1 },
+        "also_known_as": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "category": {
+          "type": "string",
+          "enum": ["browser-hijacker", "adware", "potentially-unwanted-program"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "description": { "type": "string", "minLength": 30 },
+        "user_facing_symptoms": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "references": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["title", "url"],
+            "additionalProperties": false,
+            "properties": {
+              "title": { "type": "string", "minLength": 1 },
+              "url": { "type": "string", "minLength": 1 },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "required": ["id", "kind", "description", "match", "remove"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/kebab_id" },
+        "kind": {
+          "type": "string",
+          "enum": ["chrome-policy", "filesystem", "configuration-profile", "launch-agent"]
+        },
+        "description": { "type": "string", "minLength": 20 },
+        "match": { "type": "object", "minProperties": 1 },
+        "scopes_to_check": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "remove": {
+          "type": "object",
+          "required": ["action", "requires_root"],
+          "additionalProperties": false,
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["defaults-delete-key", "remove-directory", "remove-file", "remove-profile", "unload-and-remove-plist"]
+            },
+            "surgical": { "type": "boolean" },
+            "requires_root": { "type": "boolean" },
+            "precedence": {
+              "type": "string",
+              "enum": ["first", "last"]
+            }
+          }
+        }
+      }
+    },
+    "verification_check": {
+      "type": "object",
+      "required": ["description", "check"],
+      "additionalProperties": true,
+      "properties": {
+        "description": { "type": "string", "minLength": 10 },
+        "check": {
+          "type": "string",
+          "enum": ["chrome-policy-empty", "file-absent-or-key-absent", "paths-absent", "user-acknowledge"]
+        }
+      }
+    },
+    "extension_id_entry": {
+      "type": "object",
+      "required": ["id", "confirmed", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/extension_id" },
+        "confirmed": { "$ref": "#/$defs/iso_date" },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "maintenance": {
+      "type": "object",
+      "required": ["curated_by", "last_reviewed"],
+      "additionalProperties": false,
+      "properties": {
+        "curated_by": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "last_reviewed": { "$ref": "#/$defs/iso_date" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
