@@ -1,0 +1,96 @@
+# Trovi — TrueFix detection rule pack
+# -----------------------------------
+# STUB. Needs a verified extension ID list and real-world cleanup transcript
+# before this rule pack can ship.
+#
+# Family lineage: Trovi was spun out of the Conduit corporate ecosystem
+# (~2014). Largely persists today in older, un-cleaned Mac infections.
+# Detected by Malwarebytes as PUP.Optional.Trovi.
+
+schema_version: 1
+
+family:
+  id: trovi
+  display_name: "Trovi"
+  also_known_as:
+    - "Trovi Search"
+    - "Search Protect"
+  category: browser-hijacker
+  severity: high
+  description: >
+    Chrome / Safari / Firefox hijacker that forces searches to route through
+    trovi.com or search.trovi.com. Heavy ad injection and noticeable
+    performance impact. Typically installs alongside a helper application
+    called "Search Protect" that re-applies hijacker settings if removed.
+  user_facing_symptoms:
+    - "Default search engine forced to trovi.com or search.trovi.com"
+    - "Search Protect helper application visible in /Applications/"
+    - "Removing the extension via Chrome UI fails or is reapplied on next launch"
+    - "Mac performance degraded due to injected scripts on every page"
+  references:
+    - title: "MalwareTips: Remove Trovi Browser Hijacker From Mac"
+      url: "https://malwaretips.com/blogs/remove-trovi-mac-os-x/"
+      note: "Comprehensive removal guide. Use for symptom verification."
+    - title: "Tom's Guide: How to Remove Trovi Search"
+      url: "https://www.tomsguide.com/us/trovi-search-remove-how-to,news-19130.html"
+      note: "Older but covers helper-app persistence pattern."
+    - title: "2-Spyware: Remove Trovi"
+      url: "https://www.2-spyware.com/remove-trovi.html"
+      note: "Last updated 2019; symptoms still consistent with current variants."
+    # TODO: confirm at least one URL is live with current variant info and
+    # add a real-world cleanup transcript as primary source before shipping.
+
+# ---------------------------------------------------------------------------
+# Detection signals — STUB
+# ---------------------------------------------------------------------------
+# Trovi's persistence pattern is documented but specific extension IDs and
+# helper-app bundle IDs need a real-world cleanup transcript before this rule
+# pack should be enabled in production.
+signals:
+  - id: chrome-forced-extension
+    kind: chrome-policy
+    description: >
+      TODO: Trovi historically used ExtensionInstallForcelist-style mechanisms.
+      Confirm with a real-world infected machine which extension IDs are dropped.
+    match:
+      policy_key: ExtensionInstallForcelist
+      extension_ids: []   # TODO: research and confirm
+    scopes_to_check:
+      - /Library/Preferences/com.google.Chrome.plist
+      - /Library/Managed Preferences/com.google.Chrome.plist
+      - ~/Library/Preferences/com.google.Chrome.plist
+    remove:
+      action: defaults-delete-key
+      surgical: true
+      requires_root: true
+
+  - id: search-protect-helper
+    kind: filesystem
+    description: >
+      The "Search Protect" helper application re-applies hijacker settings
+      after they're removed by the browser. Must be uninstalled before
+      cleaning the extension, or it will return.
+    match:
+      paths:
+        - "/Applications/Search Protect.app"
+        - "~/Applications/Search Protect.app"
+      # TODO: confirm the helper's exact bundle ID and supporting LaunchAgent path
+    remove:
+      action: remove-directory
+      requires_root: true   # may need root depending on install location
+      precedence: first   # remove BEFORE the extension/policy signals
+
+# TODO: full schema fields below — fill in during research phase
+extension_ids: []   # TODO
+
+url_patterns:
+  - trovi.com
+  - search.trovi.com
+
+maintenance:
+  curated_by: []   # TODO
+  last_reviewed: null
+  notes: >
+    STUB. Trovi is a well-documented family but the persistence-path detail
+    needed for a production rule pack requires a real-world cleanup transcript.
+    Until then, this stub documents the family for contributors.
