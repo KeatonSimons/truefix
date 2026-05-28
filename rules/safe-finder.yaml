@@ -1,0 +1,139 @@
+# Safe Finder / Genieo / AdLoad — TrueFix detection rule pack
+# -----------------------------------------------------------
+# STUB. This is the most prevalent and sophisticated browser-hijacker family
+# affecting macOS. A real rule pack requires multiple cleanup transcripts
+# (variants drop different file names; the family uses randomized component
+# naming). HIGH PRIORITY for the project.
+
+schema_version: 1
+
+family:
+  id: safe-finder
+  display_name: "Safe Finder / Genieo"
+  also_known_as:
+    - "Genieo"
+    - "AdLoad"
+    - "OSX.Adload"
+    - "Safe Finder Search"
+    - "SearchMainInfo"
+    - "ArchimedesLookup"
+    - "SectionBrowser"
+    - "CreativeSearch"
+    - "MyMacUpdater"
+  category: browser-hijacker
+  severity: critical   # most sophisticated persistence in the macOS hijacker space
+  description: >
+    The dominant family of modern macOS browser hijackers. AdLoad (the
+    underlying engine) installs:
+      - A LaunchAgent that runs at user login
+      - A LaunchDaemon for system-wide persistence in some variants
+      - Multiple browser extensions across all installed browsers
+      - One or more helper applications in /Applications/ or ~/Applications/
+        with randomized names (SearchMainInfo, ArchimedesLookup, etc.)
+      - Optional Configuration Profiles
+    If ANY single component is removed without removing the others, the
+    family re-installs itself within minutes. This is the family that
+    motivated Apple to build XProtect Remediator (the macOS built-in
+    anti-malware that ships in modern macOS versions).
+  user_facing_symptoms:
+    - "Default search engine forced to safefinder.com or various AdLoad-family search portals"
+    - "Sponsored results injected into seemingly-legitimate search pages"
+    - "New 'helper' applications appear in /Applications/ with generic names"
+    - "Hijacker affects Safari, Chrome, AND Firefox simultaneously"
+    - "Removing one component (extension OR helper app) doesn't stick"
+  references:
+    - title: "Malwarebytes Labs: OSX.Genieo"
+      url: "https://www.malwarebytes.com/blog/detections/osx-genieo"
+      note: "Vendor detection family description. Authoritative."
+    - title: "PCRisk: Genieo Virus (Mac) — Removal steps"
+      url: "https://www.pcrisk.com/removal-guides/13772-genieo-virus-mac"
+      note: "Detailed persistence-mechanism walkthrough including LaunchAgent and Profile paths."
+    - title: "CoreLock: Genieo Mac Malware"
+      url: "https://corelock.net/threats/genieo"
+      note: "Modern (2025-era) writeup. Symptoms still match."
+    - title: "MacSecurity: XProtectRemediatorGenieo Mac alert"
+      url: "https://macsecurity.net/view/568-xprotectremediatorgenieo-mac-alert"
+      note: "Useful for cross-referencing what Apple's built-in remediator catches and (importantly) what it misses."
+    - title: "Trend Micro: Remove Safe Finder Browser Hijacker on Mac"
+      url: "https://helpcenter.trendmicro.com/en-us/article/tmka-09594"
+      note: "Safe Finder-flavored variant writeup."
+    # TODO: add multiple real-world cleanup transcripts — variants differ
+    # significantly so a single transcript isn't enough.
+
+# ---------------------------------------------------------------------------
+# Detection signals — STUB
+# ---------------------------------------------------------------------------
+# This family uses randomized component naming, which means rule packs CANNOT
+# rely on specific filenames alone. The right approach is:
+#   1. Match LaunchAgent / LaunchDaemon plist contents (CFBundleIdentifier
+#      prefixes are typically consistent within a variant generation)
+#   2. Match helper-app bundle identifier patterns
+#   3. Match browser extension manifest signatures (more research needed)
+signals:
+  - id: launch-agent-patterns
+    kind: filesystem
+    description: >
+      AdLoad LaunchAgents at ~/Library/LaunchAgents/ with plist contents that
+      reference safefinder.com or known AdLoad portals. Specific filenames are
+      randomized per infection.
+    match:
+      paths:
+        - "~/Library/LaunchAgents/com.*.plist"
+        - "/Library/LaunchAgents/com.*.plist"
+        - "/Library/LaunchDaemons/com.*.plist"
+      plist_contents_contains:
+        # TODO: confirm specific bundle ID prefixes used by current variants.
+        # Apple's XProtect rules are a useful reference but not public.
+        - safefinder.com
+        - genieo.com
+        - mygenieo.com
+      precedence: first   # remove these before everything else
+    remove:
+      action: unload-and-remove-plist
+      requires_root: true   # for /Library/ paths
+
+  - id: helper-app-bundles
+    kind: filesystem
+    description: >
+      Helper applications dropped in /Applications/ or ~/Applications/ with
+      randomized names. TODO: enumerate known bundle IDs.
+    match:
+      paths: []   # TODO: research current variants
+    remove:
+      action: remove-directory
+      requires_root: false   # ~/Applications/ doesn't need root
+
+  - id: configuration-profile
+    kind: configuration-profile
+    description: >
+      Some AdLoad variants install a Configuration Profile to lock browser
+      settings. TODO: confirm payload types and naming.
+    match:
+      payload_type: com.apple.ManagedClient.preferences
+      payload_content_contains: []   # TODO
+    remove:
+      action: remove-profile
+      requires_root: true
+
+extension_ids: []   # TODO: research per-variant IDs
+
+url_patterns:
+  - safefinder.com
+  - safefinder.net
+  - genieo.com
+  - mygenieo.com
+  # AdLoad variants also use a long tail of search portals; TODO: research
+
+maintenance:
+  curated_by: []   # TODO
+  last_reviewed: null
+  notes: >
+    STUB. This is the highest-priority family for the project — most
+    real-world Mac infections fall into the AdLoad family. The rule pack
+    needs:
+      1. At least 2 independent cleanup transcripts (variants differ)
+      2. Confirmed LaunchAgent bundle-ID prefixes
+      3. Helper-app bundle ID list
+      4. Per-browser extension ID list
+    Until then, this stub documents the family for contributors and serves
+    as the target for the next research sprint.
